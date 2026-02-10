@@ -182,3 +182,191 @@ def create_pizza_chart(player_name, percentiles, raw_values, param_labels, templ
         
     fig.set_facecolor("#0e1117") # Match Streamlit dark theme
     return fig
+
+def create_phase_pizza(scores_dict, percentiles_dict, title):
+    """
+    Create a pizza chart for phase scores (0-100), sized by percentile.
+    
+    Args:
+        scores_dict: Dictionary mapping phase names to scores (0-100)
+        percentiles_dict: Dictionary mapping phase names to percentiles (0-100)
+        title: Chart title
+        
+    Returns:
+        matplotlib Figure
+    """
+    # Extract labels and values
+    params = list(scores_dict.keys())
+    # Slices are sized by percentile
+    values = [percentiles_dict.get(p, 0) for p in params]
+    # Labels show raw scores
+    raw_scores = [scores_dict[p] for p in params]
+    
+    # Define colors based on percentile
+    slice_colors = []
+    for v in values:
+        if v >= 67: slice_colors.append("#10b981")  # Green
+        elif v >= 34: slice_colors.append("#f59e0b")  # Yellow
+        else: slice_colors.append("#ef4444")  # Red
+        
+    # Format labels with raw scores in brackets
+    params_with_values = [f"{p}\n({int(s)})" for p, s in zip(params, raw_scores)]
+    
+    baker = PyPizza(
+        params=params_with_values,
+        straight_line_color="#000000",
+        straight_line_lw=1,
+        last_circle_lw=1,
+        other_circle_lw=1,
+        other_circle_ls="-."
+    )
+    
+    fig, ax = baker.make_pizza(
+        values, # Size by percentile
+        figsize=(6, 6),
+        color_blank_space="same",
+        slice_colors=slice_colors,
+        value_colors=["white"] * len(values),
+        value_bck_colors=slice_colors,
+        blank_alpha=0.4,
+        kwargs_slices=dict(facecolor="cornflowerblue", edgecolor="#000000", zorder=3, linewidth=1),
+        kwargs_params=dict(color="white", fontsize=10, va="center"),
+        kwargs_values=dict(
+            color="#ffffff", fontsize=11, fontweight="bold",
+            bbox=dict(facecolor="cornflowerblue", edgecolor="#000000", boxstyle="round,pad=0.2", alpha=0.7),
+            zorder=4
+        )
+    )
+    
+    # Update text values (percentiles)
+    texts = baker.get_value_texts()
+    for i, text in enumerate(texts):
+        text.set_text(f"{int(values[i])}")
+        text.set_bbox(dict(facecolor=slice_colors[i], edgecolor="#000000", boxstyle="round,pad=0.2", alpha=0.7))
+    
+    # Title
+    fig.text(0.5, 0.97, title, ha="center", fontsize=14, color="white", fontweight="bold")
+    fig.set_facecolor("#0e1117")
+    
+    return fig
+
+def create_metric_pizza(metrics_dict, percentiles_dict, title):
+    """
+    Create a pizza chart for raw metrics, sized by percentile.
+    
+    Args:
+        metrics_dict: Dict of {metric_name: raw_value}
+        percentiles_dict: Dict of {metric_name: percentile_score (0-100)}
+        title: Chart title
+    """
+    params = list(metrics_dict.keys())
+    # Slices are sized by percentile
+    values = [percentiles_dict.get(p, 0) for p in params]
+    # Labels show raw values
+    raw_vals = [metrics_dict[p] for p in params]
+    
+    # Define colors based on percentile
+    slice_colors = []
+    for v in values:
+        if v >= 67: slice_colors.append("#10b981")  # Green
+        elif v >= 34: slice_colors.append("#f59e0b")  # Yellow
+        else: slice_colors.append("#ef4444")  # Red
+        
+    # Clean up labels for display (remove %)
+    clean_params = [p.replace(" %", "").replace(", %", "").replace("Percentage of ", "") for p in params]
+    
+    # Text wrap for better spacing
+    import textwrap
+    clean_params = ["\n".join(textwrap.wrap(p, width=12)) for p in clean_params]
+    
+    # Format labels with raw values
+    params_with_values = []
+    for p, val in zip(clean_params, raw_vals):
+        if isinstance(val, float):
+            val_str = f"{val:.1f}"
+        else:
+            val_str = str(val)
+            
+        params_with_values.append(f"{p}\n{val_str}")
+    
+    baker = PyPizza(
+        params=params_with_values,
+        straight_line_color="#000000",
+        straight_line_lw=1,
+        last_circle_lw=1,
+        other_circle_lw=1,
+        other_circle_ls="-."
+    )
+    
+    fig, ax = baker.make_pizza(
+        values, # Size by percentile
+        figsize=(5, 5),
+        color_blank_space="same",
+        slice_colors=slice_colors,
+        value_colors=["white"] * len(values),
+        value_bck_colors=slice_colors,
+        blank_alpha=0.4,
+        kwargs_slices=dict(facecolor="cornflowerblue", edgecolor="#000000", zorder=3, linewidth=1),
+        kwargs_params=dict(color="white", fontsize=9, va="center"),
+        kwargs_values=dict(
+            color="#ffffff", fontsize=10, fontweight="bold",
+            bbox=dict(facecolor="cornflowerblue", edgecolor="#000000", boxstyle="round,pad=0.2", alpha=0.7),
+            zorder=4
+        )
+    )
+    
+    # Update text values to be integers
+    texts = baker.get_value_texts()
+    for i, text in enumerate(texts):
+        text.set_text(f"{int(values[i])}")
+        text.set_bbox(dict(facecolor=slice_colors[i], edgecolor="#000000", boxstyle="round,pad=0.2", alpha=0.7))
+    
+    # Title
+    fig.text(0.5, 0.97, title, ha="center", fontsize=12, color="white", fontweight="bold")
+    fig.set_facecolor("#0e1117")
+    
+    return fig
+
+def calculate_player_percentile(value, metric, position_group, league_data):
+    """
+    Calculate percentile rank of a value against players of same position group.
+    
+    Args:
+        value: Player's metric value
+        metric: Metric name
+        position_group: "Forward", "Midfielder", "Defender", "Goalkeeper"
+        league_data: DataFrame with all players
+        
+    Returns:
+        float: Percentile (0-100)
+    """
+    if league_data.empty or metric not in league_data.columns:
+        return 0
+        
+    # Map high-level groups to specific positions
+    position_map = {
+        "Forward": ['LWF', 'LW', 'LAMF', 'RW', 'RWF', 'RAMF', 'AMF', 'CF'],
+        "Midfielder": ['LAMF', 'RAMF', 'AMF', 'CM', 'LCM', 'RCM', 'DM', 'LDM', 'RDM'],
+        "Defender": ['CB', 'RCB', 'LCB', 'LB', 'LWB', 'RB', 'RWB', 'WB'],
+        "Goalkeeper": ['GK']
+    }
+    
+    allowed = position_map.get(position_group, [])
+    
+    # Filter for position group
+    cohort = league_data[league_data['Position'].apply(lambda x: any(p in str(x) for p in allowed))]
+    
+    # Filter for min minutes (optional, but good for stability)
+    cohort = cohort[cohort['Minutes played'] >= 300]
+    
+    if cohort.empty:
+        return 0
+        
+    # Calculate percentile
+    # percentofscore = stats.percentileofscore(cohort[metric], value) # requires scipy
+    # Manual calculation
+    series = cohort[metric].dropna()
+    if len(series) == 0:
+        return 0
+        
+    return (series < value).mean() * 100

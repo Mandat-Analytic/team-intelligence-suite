@@ -14,5 +14,21 @@
         "Registration": [
             "League"
         ]
+    },
+    "M. Ivani\u0107": {
+        "Quality": "Key player",
+        "Salary": "Top earner",
+        "Contract": "Contracted player",
+        "Role": "Verbal leader",
+        "Player Type": [
+            "Winner",
+            "Vocal leader"
+        ],
+        "Contract Options": [
+            "Contract extension"
+        ],
+        "Registration": [
+            "League"
+        ]
     }
 }

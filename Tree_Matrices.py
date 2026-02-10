@@ -563,676 +563,675 @@ def render_squad_planner(league_data, selected_team):
 # --- Main App ---
 
 def main():
-    st.sidebar.header("CONFIGURATION")
-    
-    # Initialize session state for interactivity
-    if 'selected_phase' not in st.session_state:
-        st.session_state.selected_phase = None
-    if 'show_top_players' not in st.session_state:
-        st.session_state.show_top_players = False
-        
-    page = st.sidebar.radio("Navigation", ["Performance Tree", "Deep Analytics", "Trend Analytics"])
-    
-    # League Selection
-    available_leagues = get_available_leagues()
-    if not available_leagues:
-        st.error("No leagues found in database/Team Stats/")
-        return
-    
-    selected_league = st.sidebar.selectbox("League", available_leagues)
-    
-    # Team Selection
-    available_teams = get_teams_in_league(selected_league)
-    if not available_teams:
-        st.error(f"No teams found in {selected_league}")
-        return
-    
-    selected_team = st.sidebar.selectbox("Team", available_teams)
-    
-    # Load team data
     try:
-        team_data, metric_mapping = load_team_data_cached(selected_league, selected_team)
-    except Exception as e:
-        st.error(f"Error loading team data: {str(e)}")
-        return
-    
-    if team_data is None or team_data.empty:
-        st.error("No data available for selected team")
-        return
-    
-    # Standardize Match numbering: Earliest date should be Match 1
-    if 'Date' in team_data.columns:
-        team_data['Date'] = pd.to_datetime(team_data['Date'])
-        team_data = team_data.sort_values('Date').reset_index(drop=True)
-    
-    # Match Selection
-    match_options = [f"Match {i+1} ({row['Date'].strftime('%Y-%m-%d') if pd.notna(row['Date']) else 'N/A'})" 
-                     for i, row in team_data.iterrows()]
-    selected_match_idx = st.sidebar.selectbox("Match", range(len(match_options)), format_func=lambda x: match_options[x])
-    
-    st.sidebar.markdown("---")
-    
-    # Benchmark Selection with League-aware comparisons
-    kpi_mode = st.sidebar.radio("Benchmark", ["Season Avg", "League Avg", "Top 25%", "Custom"])
-    custom_target = 80
-    if kpi_mode == "Custom":
-        custom_target = st.sidebar.slider("Target", 0, 100, 80)
-    
-    # Calculate scores for current match
-    current_team_row = team_data.iloc[selected_match_idx]
-    current_opp_row = pd.Series()  # Opponent data is in same row
-    
-    scores = scoring_engine.calculate_match_scores(current_team_row, current_opp_row)
-    
-    # Calculate all scores for team's season
-    all_scores_list = []
-    for i in range(len(team_data)):
-        try:
-            match_scores = scoring_engine.calculate_match_scores(team_data.iloc[i], pd.Series())
-            all_scores_list.append(match_scores)
-        except Exception as e:
-            print(f"Error scoring match {i}: {str(e)}")
-            continue
-    
-    all_scores_df = pd.DataFrame(all_scores_list) if all_scores_list else pd.DataFrame()
-    
-    # Calculate KPI thresholds based on selected mode
-    if kpi_mode == "Season Avg" and not all_scores_df.empty:
-        kpi_thresholds = all_scores_df.mean().to_dict()
-        st.sidebar.info(f"📊 Comparing vs team's season average")
+        st.sidebar.header("CONFIGURATION")
         
-    elif kpi_mode == "League Avg":
-        # Load and calculate league average
-        with st.spinner(f"Loading league data for {selected_league}..."):
-            league_df = load_league_data_cached(selected_league)
+        # Initialize session state for interactivity
+        if 'selected_phase' not in st.session_state:
+            st.session_state.selected_phase = None
+        if 'show_top_players' not in st.session_state:
+            st.session_state.show_top_players = False
             
-        if not league_df.empty:
-            # Calculate scores for all league matches
-            league_scores = []
-            for i in range(min(len(league_df), 500)):  # Limit to avoid timeout
-                try:
-                    match_scores = scoring_engine.calculate_match_scores(league_df.iloc[i], pd.Series())
-                    league_scores.append(match_scores)
-                except:
-                    continue
+        page = st.sidebar.radio("Navigation", ["Performance Tree", "Deep Analytics", "Trend Analytics"])
+        
+        # League Selection
+        available_leagues = get_available_leagues()
+        if not available_leagues:
+            st.error("No leagues found in database/Team Stats/")
+            return
+        
+        selected_league = st.sidebar.selectbox("League", available_leagues)
+        
+        # Team Selection
+        available_teams = get_teams_in_league(selected_league)
+        if not available_teams:
+            st.error(f"No teams found in {selected_league}")
+            return
+        
+        selected_team = st.sidebar.selectbox("Team", available_teams)
+        
+        # Load team data
+        try:
+            team_data, metric_mapping = load_team_data_cached(selected_league, selected_team)
+        except Exception as e:
+            st.error(f"Error loading team data: {str(e)}")
+            return
+        
+        if team_data is None or team_data.empty:
+            st.error("No data available for selected team")
+            return
+        
+        # Standardize Match numbering: Earliest date should be Match 1
+        if 'Date' in team_data.columns:
+            team_data['Date'] = pd.to_datetime(team_data['Date'])
+            team_data = team_data.sort_values('Date').reset_index(drop=True)
+        
+        # Match Selection
+        match_options = [f"Match {i+1} ({row['Date'].strftime('%Y-%m-%d') if pd.notna(row['Date']) else 'N/A'})" 
+                         for i, row in team_data.iterrows()]
+        selected_match_idx = st.sidebar.selectbox("Match", range(len(match_options)), format_func=lambda x: match_options[x])
+        
+        st.sidebar.markdown("---")
+        
+        # Benchmark Selection with League-aware comparisons
+        kpi_mode = st.sidebar.radio("Benchmark", ["Season Avg", "League Avg", "Top 25%", "Custom"])
+        custom_target = 80
+        if kpi_mode == "Custom":
+            custom_target = st.sidebar.slider("Target", 0, 100, 80)
+        
+        # Calculate scores for current match
+        current_team_row = team_data.iloc[selected_match_idx]
+        current_opp_row = pd.Series()  # Opponent data is in same row
+        
+        scores = scoring_engine.calculate_match_scores(current_team_row, current_opp_row)
+        
+        # Calculate all scores for team's season
+        all_scores_list = []
+        for i in range(len(team_data)):
+            try:
+                match_scores = scoring_engine.calculate_match_scores(team_data.iloc[i], pd.Series())
+                all_scores_list.append(match_scores)
+            except Exception as e:
+                print(f"Error scoring match {i}: {str(e)}")
+                continue
+        
+        all_scores_df = pd.DataFrame(all_scores_list) if all_scores_list else pd.DataFrame()
+        
+        # Calculate KPI thresholds based on selected mode
+        if kpi_mode == "Season Avg" and not all_scores_df.empty:
+            kpi_thresholds = all_scores_df.mean().to_dict()
+            st.sidebar.info(f"📊 Comparing vs team's season average")
             
-            league_scores_df = pd.DataFrame(league_scores) if league_scores else pd.DataFrame()
-            if not league_scores_df.empty:
-                kpi_thresholds = league_scores_df.mean().to_dict()
-                st.sidebar.success(f"✅ Calculated from {len(league_scores_df)} league matches")
+        elif kpi_mode == "League Avg":
+            # Load and calculate league average
+            with st.spinner(f"Loading league data for {selected_league}..."):
+                league_df = load_league_data_cached(selected_league)
+                
+            if not league_df.empty:
+                # Calculate scores for all league matches
+                league_scores = []
+                for i in range(min(len(league_df), 500)):  # Limit to avoid timeout
+                    try:
+                        match_scores = scoring_engine.calculate_match_scores(league_df.iloc[i], pd.Series())
+                        league_scores.append(match_scores)
+                    except:
+                        continue
+                
+                league_scores_df = pd.DataFrame(league_scores) if league_scores else pd.DataFrame()
+                if not league_scores_df.empty:
+                    kpi_thresholds = league_scores_df.mean().to_dict()
+                    st.sidebar.success(f"✅ Calculated from {len(league_scores_df)} league matches")
+                else:
+                    kpi_thresholds = {col: 70 for col in scores.keys()}
+                    st.sidebar.warning("⚠️  Using default values")
             else:
                 kpi_thresholds = {col: 70 for col in scores.keys()}
-                st.sidebar.warning("⚠️  Using default values")
-        else:
-            kpi_thresholds = {col: 70 for col in scores.keys()}
-            st.sidebar.warning("⚠️  League data not available")
-            
-    elif kpi_mode == "Top 25%":
-        # Load and calculate top 25% (75th percentile)
-        with st.spinner(f"Loading league data for {selected_league}..."):
-            league_df = load_league_data_cached(selected_league)
-            
-        if not league_df.empty:
-            league_scores = []
-            for i in range(min(len(league_df), 500)):
-                try:
-                    match_scores = scoring_engine.calculate_match_scores(league_df.iloc[i], pd.Series())
-                    league_scores.append(match_scores)
-                except:
-                    continue
-            
-            league_scores_df = pd.DataFrame(league_scores) if league_scores else pd.DataFrame()
-            if not league_scores_df.empty:
-                kpi_thresholds = league_scores_df.quantile(0.75).to_dict()
-                st.sidebar.success(f"✅ 75th percentile from {len(league_scores_df)} matches")
+                st.sidebar.warning("⚠️  League data not available")
+                
+        elif kpi_mode == "Top 25%":
+            # Load and calculate top 25% (75th percentile)
+            with st.spinner(f"Loading league data for {selected_league}..."):
+                league_df = load_league_data_cached(selected_league)
+                
+            if not league_df.empty:
+                league_scores = []
+                for i in range(min(len(league_df), 500)):
+                    try:
+                        match_scores = scoring_engine.calculate_match_scores(league_df.iloc[i], pd.Series())
+                        league_scores.append(match_scores)
+                    except:
+                        continue
+                
+                league_scores_df = pd.DataFrame(league_scores) if league_scores else pd.DataFrame()
+                if not league_scores_df.empty:
+                    kpi_thresholds = league_scores_df.quantile(0.75).to_dict()
+                    st.sidebar.success(f"✅ 75th percentile from {len(league_scores_df)} matches")
+                else:
+                    kpi_thresholds = {col: 80 for col in scores.keys()}
+                    st.sidebar.warning("⚠️  Using default values")
             else:
                 kpi_thresholds = {col: 80 for col in scores.keys()}
-                st.sidebar.warning("⚠️  Using default values")
-        else:
-            kpi_thresholds = {col: 80 for col in scores.keys()}
-            st.sidebar.warning("⚠️  League data not available")
-            
-    else:  # Custom
-        kpi_thresholds = {col: custom_target for col in scores.keys()}
+                st.sidebar.warning("⚠️  League data not available")
+                
+        else:  # Custom
+            kpi_thresholds = {col: custom_target for col in scores.keys()}
     
     # Render appropriate page
-    if page == "Performance Tree":
-        st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
-        
-        # Display the tree
-        render_full_tree(scores, kpi_thresholds, current_team_row)
-        
-        # Dynamic Content underneath the tree
-        if st.session_state.selected_phase:
-            phase = st.session_state.selected_phase
-            st.markdown("---")
+        if page == "Performance Tree":
+            st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
             
-            # Action Buttons
-            col_act1, col_act2, col_act3 = st.columns([1, 2, 1])
-            with col_act1:
-                if st.button("Hide", use_container_width=True):
-                    st.session_state.selected_phase = None
-                    st.session_state.show_top_players = False
-                    st.rerun()
-            with col_act2:
-                btn_label = "Hide Top Contributing Players" if st.session_state.show_top_players else "Show Top Contributing Players (Percentile Rank)"
-                if st.button(btn_label, use_container_width=True):
-                    st.session_state.show_top_players = not st.session_state.show_top_players
-                    st.rerun()
+            # Display the tree
+            render_full_tree(scores, kpi_thresholds, current_team_row)
             
-            # Trend Chart
-            st.markdown(f"### {phase} Performance Trend")
-            if not all_scores_df.empty and phase in all_scores_df.columns:
-                trend_data = all_scores_df[[phase]].copy()
-                trend_data['Match Number'] = [f"Match {i+1}" for i in range(len(trend_data))]
-                benchmark_val = kpi_thresholds.get(phase, 70)
-                
-                fig = go.Figure()
-                # Benchmark line
-                fig.add_shape(type="line", x0=-0.5, y0=benchmark_val, x1=len(trend_data)-0.5, y1=benchmark_val,
-                             line=dict(color="rgba(148, 163, 184, 0.5)", width=2, dash="dash"))
-                
-                # Performance line
-                fig.add_trace(go.Scatter(
-                    x=trend_data['Match Number'],
-                    y=trend_data[phase],
-                    mode='lines+markers+text',
-                    name=phase,
-                    text=[f"{v:.1f}" for v in trend_data[phase]],
-                    textposition="top center",
-                    line=dict(color="#3b82f6", width=4, shape='spline'),
-                    marker=dict(
-                        size=10,
-                        color=["#10b981" if v >= benchmark_val else "#ef4444" for v in trend_data[phase]]
-                    )
-                ))
-                fig.update_layout(
-                    plot_bgcolor="rgba(15, 23, 42, 0.5)", paper_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
-                    yaxis=dict(gridcolor="rgba(255,255,255,0.05)", range=[0, 110]),
-                    margin=dict(l=20, r=20, t=40, b=20), height=400, showlegend=False
-                )
-                st.plotly_chart(fig, use_container_width=True)
-
-            # Top Contributing Players (if toggled)
-            if st.session_state.show_top_players:
+            # Dynamic Content underneath the tree
+            if st.session_state.selected_phase:
+                phase = st.session_state.selected_phase
                 st.markdown("---")
-                st.markdown(f"### Top Contributing Players for {phase}")
                 
-                # We need to map phase names to analysis phases used in Deep Analytics
-                phase_map = {
-                    "Game Model": "Output", # Fallback or specific mapping
-                    "In Possession": "Progression",
-                    "Out of Possession": "Pressing",
-                    "Build Up": "Build Up",
-                    "Progression": "Progression",
-                    "Transition (D to A)": "Transition D→A",
-                    "Set Pieces (Off)": "Offensive Set Pieces",
-                    "Output": "Output",
-                    "Pressing": "Pressing",
-                    "Defensive Block": "Defensive Block",
-                    "Transition (A to D)": "Transition A→D",
-                    "Set Pieces (Def)": "Defensive Set Pieces",
-                    "Output Against": "Output Against"
-                }
+                # Action Buttons
+                col_act1, col_act2, col_act3 = st.columns([1, 2, 1])
+                with col_act1:
+                    if st.button("Hide", use_container_width=True):
+                        st.session_state.selected_phase = None
+                        st.session_state.show_top_players = False
+                        st.rerun()
+                with col_act2:
+                    btn_label = "Hide Top Contributing Players" if st.session_state.show_top_players else "Show Top Contributing Players (Percentile Rank)"
+                    if st.button(btn_label, use_container_width=True):
+                        st.session_state.show_top_players = not st.session_state.show_top_players
+                        st.rerun()
                 
-                analytics_phase = phase_map.get(phase, "Build Up")
-                league_player_data = load_player_data_cached(selected_league)
-                
-                # Extract Top Players Logic from Deep Analytics (reusable)
-                PHASE_INFO_LOCAL = {
-                    "Build Up": {"player_metrics": ["Passes per 90", "Accurate passes, %", "Back passes per 90", "Lateral passes per 90"]},
-                    "Progression": {"player_metrics": ["Forward passes per 90", "Progressive passes per 90", "Deep completions per 90", "Progressive runs per 90", "xA per 90"]},
-                    "Transition D→A": {"player_metrics": ["Accelerations per 90", "Progressive runs per 90", "Successful defensive actions per 90"]},
-                    "Offensive Set Pieces": {"player_metrics": ["Crosses per 90", "Accurate crosses, %", "Aerial duels won, %"]},
-                    "Output": {"player_metrics": ["Goals per 90", "xG per 90", "Shots on target, %"]},
-                    "Pressing": {"player_metrics": ["Defensive duels per 90", "Defensive duels won, %", "PAdj Interceptions"]},
-                    "Defensive Block": {"player_metrics": ["Shots blocked per 90", "Aerial duels won, %", "Successful defensive actions per 90"]},
-                    "Transition A→D": {"player_metrics": ["PAdj Sliding tackles", "Fouls per 90", "Red cards per 90"]},
-                    "Defensive Set Pieces": {"player_metrics": ["Aerial duels won, %", "Aerial duels per 90", "Clearances per 90"]},
-                    "Output Against": {"player_metrics": ["Shots blocked per 90", "Interceptions per 90", "Successful defensive actions per 90"]}
-                }
-                
-                # (Remaining logic similar to Deep Analytics but condensed)
-                if analytics_phase in PHASE_INFO_LOCAL and not league_player_data.empty:
-                    team_players = league_player_data[league_player_data['Team'] == selected_team].copy().drop_duplicates(subset=['Player'])
-                    metrics = PHASE_INFO_LOCAL[analytics_phase]["player_metrics"]
-                    available_metrics = [m for m in metrics if m in team_players.columns]
+                # Trend Chart
+                st.markdown(f"### {phase} Performance Trend")
+                if not all_scores_df.empty and phase in all_scores_df.columns:
+                    trend_data = all_scores_df[[phase]].copy()
+                    trend_data['Match Number'] = [f"Match {i+1}" for i in range(len(trend_data))]
+                    benchmark_val = kpi_thresholds.get(phase, 70)
                     
-                    if available_metrics:
-                        team_players['Phase Score'] = 0
-                        for m in available_metrics:
-                            max_v = team_players[m].max()
-                            if max_v > 0: team_players['Phase Score'] += (team_players[m] / max_v)
+                    fig = go.Figure()
+                    # Benchmark line
+                    fig.add_shape(type="line", x0=-0.5, y0=benchmark_val, x1=len(trend_data)-0.5, y1=benchmark_val,
+                                 line=dict(color="rgba(148, 163, 184, 0.5)", width=2, dash="dash"))
+                    
+                    # Performance line
+                    fig.add_trace(go.Scatter(
+                        x=trend_data['Match Number'],
+                        y=trend_data[phase],
+                        mode='lines+markers+text',
+                        name=phase,
+                        text=[f"{v:.1f}" for v in trend_data[phase]],
+                        textposition="top center",
+                        line=dict(color="#3b82f6", width=4, shape='spline'),
+                        marker=dict(
+                            size=10,
+                            color=["#10b981" if v >= benchmark_val else "#ef4444" for v in trend_data[phase]]
+                        )
+                    ))
+                    fig.update_layout(
+                        plot_bgcolor="rgba(15, 23, 42, 0.5)", paper_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
+                        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", range=[0, 110]),
+                        margin=dict(l=20, r=20, t=40, b=20), height=400, showlegend=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+    
+                # Top Contributing Players (if toggled)
+                if st.session_state.show_top_players:
+                    st.markdown("---")
+                    st.markdown(f"### Top Contributing Players for {phase}")
+                    
+                    # We need to map phase names to analysis phases used in Deep Analytics
+                    phase_map = {
+                        "Game Model": "Output", # Fallback or specific mapping
+                        "In Possession": "Progression",
+                        "Out of Possession": "Pressing",
+                        "Build Up": "Build Up",
+                        "Progression": "Progression",
+                        "Transition (D to A)": "Transition D→A",
+                        "Set Pieces (Off)": "Offensive Set Pieces",
+                        "Output": "Output",
+                        "Pressing": "Pressing",
+                        "Defensive Block": "Defensive Block",
+                        "Transition (A to D)": "Transition A→D",
+                        "Set Pieces (Def)": "Defensive Set Pieces",
+                        "Output Against": "Output Against"
+                    }
+                    
+                    analytics_phase = phase_map.get(phase, "Build Up")
+                    league_player_data = load_player_data_cached(selected_league)
+                    
+                    # Extract Top Players Logic from Deep Analytics (reusable)
+                    PHASE_INFO_LOCAL = {
+                        "Build Up": {"player_metrics": ["Passes per 90", "Accurate passes, %", "Back passes per 90", "Lateral passes per 90"]},
+                        "Progression": {"player_metrics": ["Forward passes per 90", "Progressive passes per 90", "Deep completions per 90", "Progressive runs per 90", "xA per 90"]},
+                        "Transition D→A": {"player_metrics": ["Accelerations per 90", "Progressive runs per 90", "Successful defensive actions per 90"]},
+                        "Offensive Set Pieces": {"player_metrics": ["Crosses per 90", "Accurate crosses, %", "Aerial duels won, %"]},
+                        "Output": {"player_metrics": ["Goals per 90", "xG per 90", "Shots on target, %"]},
+                        "Pressing": {"player_metrics": ["Defensive duels per 90", "Defensive duels won, %", "PAdj Interceptions"]},
+                        "Defensive Block": {"player_metrics": ["Shots blocked per 90", "Aerial duels won, %", "Successful defensive actions per 90"]},
+                        "Transition A→D": {"player_metrics": ["PAdj Sliding tackles", "Fouls per 90", "Red cards per 90"]},
+                        "Defensive Set Pieces": {"player_metrics": ["Aerial duels won, %", "Aerial duels per 90", "Clearances per 90"]},
+                        "Output Against": {"player_metrics": ["Shots blocked per 90", "Interceptions per 90", "Successful defensive actions per 90"]}
+                    }
+                    
+                    # (Remaining logic similar to Deep Analytics but condensed)
+                    if analytics_phase in PHASE_INFO_LOCAL and not league_player_data.empty:
+                        team_players = league_player_data[league_player_data['Team'] == selected_team].copy().drop_duplicates(subset=['Player'])
+                        metrics = PHASE_INFO_LOCAL[analytics_phase]["player_metrics"]
+                        available_metrics = [m for m in metrics if m in team_players.columns]
                         
-                        top_p = team_players.sort_values('Phase Score', ascending=False).head(10)
-                        
-                        for _, row in top_p.iterrows():
-                            p_name, pos = row['Player'], row['Position'] if 'Position' in row else "N/A"
-                            st.markdown(f"**{p_name}** ({pos})")
-                            cols = st.columns(len(available_metrics))
-                            for i, m in enumerate(available_metrics):
-                                pct = radar_chart.calculate_player_percentile(row[m], m, "Midfielder", league_player_data) # Simplified pos_group
-                                color = "green" if pct >= 67 else "orange" if pct >= 34 else "red"
-                                with cols[i]:
-                                    st.caption(m)
-                                    st.progress(int(pct)/100)
-                                    st.markdown(f":{color}[**{int(pct)}**]")
-                            st.markdown("---")
+                        if available_metrics:
+                            team_players['Phase Score'] = 0
+                            for m in available_metrics:
+                                max_v = team_players[m].max()
+                                if max_v > 0: team_players['Phase Score'] += (team_players[m] / max_v)
+                            
+                            top_p = team_players.sort_values('Phase Score', ascending=False).head(10)
+                            
+                            for _, row in top_p.iterrows():
+                                p_name, pos = row['Player'], row['Position'] if 'Position' in row else "N/A"
+                                st.markdown(f"**{p_name}** ({pos})")
+                                cols = st.columns(len(available_metrics))
+                                for i, m in enumerate(available_metrics):
+                                    pct = radar_chart.calculate_player_percentile(row[m], m, "Midfielder", league_player_data) # Simplified pos_group
+                                    color = "green" if pct >= 67 else "orange" if pct >= 34 else "red"
+                                    with cols[i]:
+                                        st.caption(m)
+                                        st.progress(int(pct)/100)
+                                        st.markdown(f":{color}[**{int(pct)}**]")
+                                st.markdown("---")
 
-    elif page == "Deep Analytics":
-        st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
-        st.subheader("DEEP ANALYTICS - Overall Team Strategy & Player Impact")
-        
-        # Load League Data for Percentiles
-        league_player_data = load_player_data_cached(selected_league)
-        
-        # --- 1. Team Phase Analysis (Pizza Charts) ---
-        st.markdown("### 1. Team Phase Performance (Season Average)")
-        
-        if team_data.empty:
-            st.warning("No data available for this team.")
-            return
-
-        # Calculate Season Averages for Team
-        numeric_cols = team_data.select_dtypes(include=[np.number]).columns
-        season_avg = team_data[numeric_cols].mean()
-        
-        # Helper to get phase scores
-        scorer = scoring_engine.GameModelScorer()
-        
-        in_possession_phases = {
-            "Build Up": scorer.score_build_up_phase,
-            "Progression": scorer.score_progression_phase,
-            "Transition D→A": scorer.score_transition_d_to_a,
-            "Offensive Set Pieces": scorer.score_offensive_set_pieces,
-            "Output": scorer.score_output_phase
-        }
-        
-        out_possession_phases = {
-            "Pressing": scorer.score_pressing_phase,
-            "Defensive Block": scorer.score_defensive_block,
-            "Transition A→D": scorer.score_transition_a_to_d,
-            "Defensive Set Pieces": scorer.score_defensive_set_pieces,
-            "Output Against": scorer.score_output_against
-        }
-        
-        # --- LEAGUE CONTEXT CALCULATION ---
-        with st.spinner("Calculating league context..."):
-            league_matches = load_league_data_cached(selected_league)
+        elif page == "Deep Analytics":
+            st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
+            st.subheader("DEEP ANALYTICS - Overall Team Strategy & Player Impact")
             
-            if not league_matches.empty:
-                # 1. Calculate Season Avg for every team in league
-                league_teams_avg = league_matches.groupby('Team')[numeric_cols].mean()
-                
-                # 2. Calculate phase scores for every team
-                league_team_phase_scores = []
-                for t_name, t_avg in league_teams_avg.iterrows():
-                    res = {}
-                    for name, func in in_possession_phases.items():
-                        res[name] = func(t_avg) * 10
-                    for name, func in out_possession_phases.items():
-                        res[name] = func(t_avg) * 10
-                    league_team_phase_scores.append(res)
-                
-                league_scores_df = pd.DataFrame(league_team_phase_scores)
-                
-                # 3. Calculate current team absolute scores
-                current_team_abs = {}
-                for name, func in in_possession_phases.items():
-                    current_team_abs[name] = func(season_avg) * 10
-                for name, func in out_possession_phases.items():
-                    current_team_abs[name] = func(season_avg) * 10
-                
-                current_team_abs_df = pd.DataFrame([current_team_abs])
-                
-                # 4. Use scoring_engine to normalize
-                norm_results = scoring_engine.normalize_scores_to_league(current_team_abs_df, league_scores_df)
-                
-                # 5. Extract results for visualization
-                in_poss_scores = {name: norm_results[name]['min_max'] for name in in_possession_phases}
-                in_poss_percentiles = {name: norm_results[name]['percentile'] for name in in_possession_phases}
-                
-                out_poss_scores = {name: norm_results[name]['min_max'] for name in out_possession_phases}
-                out_poss_percentiles = {name: norm_results[name]['percentile'] for name in out_possession_phases}
-            else:
-                # Fallback to absolute scores if league data missing
-                in_poss_scores = {name: int(func(season_avg) * 10) for name, func in in_possession_phases.items()}
-                in_poss_percentiles = in_poss_scores
-                out_poss_scores = {name: int(func(season_avg) * 10) for name, func in out_possession_phases.items()}
-                out_poss_percentiles = out_poss_scores
-
-        # Display Pizza Charts
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**In Possession Strategy**")
-            fig_in = radar_chart.create_phase_pizza(in_poss_scores, in_poss_percentiles, "In Possession")
-            st.pyplot(fig_in, use_container_width=True)
+            # Load League Data for Percentiles
+            league_player_data = load_player_data_cached(selected_league)
             
-        with col2:
-            st.markdown("**Out of Possession Strategy**")
-            fig_out = radar_chart.create_phase_pizza(out_poss_scores, out_poss_percentiles, "Out of Possession")
-            st.pyplot(fig_out, use_container_width=True)
+            # --- 1. Team Phase Analysis (Pizza Charts) ---
+            st.markdown("### 1. Team Phase Performance (Season Average)")
             
-        st.markdown("---")
-        
-        # --- 2. Player Contributions (Percentiles) ---
-        st.markdown("### 2. Top Contributing Players (Percentile Rank)")
-        
-        # Phase Selector
-        selected_phase = st.selectbox(
-            "Select Analysis Phase",
-            list(in_possession_phases.keys()) + list(out_possession_phases.keys())
-        )
-        
-        # Define Phase Definitions (Metrics)
-        PHASE_INFO = {
-            "Build Up": {
-                "player_metrics": ["Passes per 90", "Accurate passes, %", "Back passes per 90", "Lateral passes per 90"],
-                "team_metrics": ["Back passes %", "Lateral passes %", "Possession, %", "Passes %"]
-            },
-            "Progression": {
-                "player_metrics": ["Forward passes per 90", "Progressive passes per 90", "Deep completions per 90", "Progressive runs per 90", "xA per 90"],
-                "team_metrics": ["Forward passes %", "Progressive passes %", "Passes to final third %"]
-            },
-            "Transition D→A": {
-                "player_metrics": ["Accelerations per 90", "Progressive runs per 90", "Successful defensive actions per 90"],
-                "team_metrics": ["Counterattacks Total", "Recoveries High", "PPDA"]
-            },
-            "Offensive Set Pieces": {
-                "player_metrics": ["Crosses per 90", "Accurate crosses, %", "Aerial duels won, %"],
-                "team_metrics": ["Crosses %", "Set pieces with shots", "Corners with shots"]
-            },
-            "Output": {
-                "player_metrics": ["Goals per 90", "xG per 90", "Shots on target, %"],
-                "team_metrics": ["Goals", "xG", "Shots %", "Shots on target"]
-            },
-            "Pressing": {
-                "player_metrics": ["Defensive duels per 90", "Defensive duels won, %", "PAdj Interceptions"],
-                "team_metrics": ["Defensive duels %", "Recoveries High", "PPDA"]
-            },
-            "Defensive Block": {
-                "player_metrics": ["Shots blocked per 90", "Aerial duels won, %", "Successful defensive actions per 90"],
-                "team_metrics": ["Defensive duels %", "Aerial duels %", "Sliding tackles %"]
-            },
-            "Transition A→D": {
-                "player_metrics": ["PAdj Sliding tackles", "Fouls per 90", "Red cards per 90"],
-                "team_metrics": ["Losses High", "Recoveries Medium", "Fouls"] 
-            },
-            "Defensive Set Pieces": {
-                "player_metrics": ["Aerial duels won, %", "Aerial duels per 90", "Clearances per 90"],
-                "team_metrics": ["Aerial duels %", "Clearances", "Shots against Total"]
-            },
-            "Output Against": {
-                "player_metrics": ["Shots blocked per 90", "Interceptions per 90", "Successful defensive actions per 90"],
-                "team_metrics": ["Shots against %", "xG against", "Conceded goals"]
+            if team_data.empty:
+                st.warning("No data available for this team.")
+                return
+    
+            # Calculate Season Averages for Team
+            numeric_cols = team_data.select_dtypes(include=[np.number]).columns
+            season_avg = team_data[numeric_cols].mean()
+            
+            # Helper to get phase scores
+            scorer = scoring_engine.GameModelScorer()
+            
+            in_possession_phases = {
+                "Build Up": scorer.score_build_up_phase,
+                "Progression": scorer.score_progression_phase,
+                "Transition D→A": scorer.score_transition_d_to_a,
+                "Offensive Set Pieces": scorer.score_offensive_set_pieces,
+                "Output": scorer.score_output_phase
             }
-        }
-        
-        phase_data = PHASE_INFO.get(selected_phase)
-        
-        # --- PHASE METRICS RADAR CHART ---
-        c1, c2 = st.columns([1, 2])
-        
-        with c1:
-            st.markdown(f"**{selected_phase} Metrics**")
-            # Calculate Team Metrics and Percentiles
-            team_metrics = phase_data.get("team_metrics", [])
             
-            if team_metrics:
-                # 1. Get Team Raw Values (Season Avg)
-                team_raw = season_avg.get(team_metrics, pd.Series()).fillna(0).to_dict()
-                
-                # 2. Get Score/Percentile for visualization
-                # For simplicty, we'll calculate percentile against LEAGUE TEAMS
-                # We need league data for this. Since we don't have a "load_league_teams" handy,
-                # we'll use a simpler approach: Map raw values to a logical 0-100 scale or just load league data if fast enough.
-                # Actually, earlier we loaded league_player_data. We don't have league TEAM data loaded for comparison easily here.
-                # Use a heuristic for now? Or load the league data properly.
-                # Let's check if 'load_league_data_cached' (returns matches) is available.
-                
+            out_possession_phases = {
+                "Pressing": scorer.score_pressing_phase,
+                "Defensive Block": scorer.score_defensive_block,
+                "Transition A→D": scorer.score_transition_a_to_d,
+                "Set Pieces (Def)": scorer.score_defensive_set_pieces,
+                "Output Against": scorer.score_output_against
+            }
+            
+            # --- LEAGUE CONTEXT CALCULATION ---
+            with st.spinner("Calculating league context..."):
                 league_matches = load_league_data_cached(selected_league)
-                metric_percentiles = {}
                 
                 if not league_matches.empty:
-                    # Resolve column names (handle short vs long mapping)
-                    from column_mapping import COLUMN_MAPPING
+                    # 1. Calculate Season Avg for every team in league
+                    league_teams_avg = league_matches.groupby('Team')[numeric_cols].mean()
                     
-                    actual_metrics = []
-                    display_names = {} # Map actual col name -> display name (short)
+                    # 2. Calculate phase scores for every team
+                    league_team_phase_scores = []
+                    for t_name, t_avg in league_teams_avg.iterrows():
+                        res = {}
+                        for name, func in in_possession_phases.items():
+                            res[name] = func(t_avg) * 10
+                        for name, func in out_possession_phases.items():
+                            res[name] = func(t_avg) * 10
+                        league_team_phase_scores.append(res)
                     
-                    for m in team_metrics:
-                        if m in league_matches.columns:
-                            actual_metrics.append(m)
-                            display_names[m] = m
-                        elif m in COLUMN_MAPPING and COLUMN_MAPPING[m] in league_matches.columns:
-                            long_name = COLUMN_MAPPING[m]
-                            actual_metrics.append(long_name)
-                            display_names[long_name] = m
+                    league_scores_df = pd.DataFrame(league_team_phase_scores)
                     
-                    if actual_metrics:
-                        # Group by team to get team averages
-                        league_teams_avg = league_matches.groupby('Team')[actual_metrics].mean()
-                        
-                        metric_percentiles = {}
-                        team_raw_resolved = {}
-                        
-                        for col in actual_metrics:
-                            # Get raw value from team data
-                            val = team_raw.get(col, season_avg.get(col, 0))
-                            
-                            short_name = display_names[col]
-                            team_raw_resolved[short_name] = val
-                            
-                            # Percentile rank
-                            if col in league_teams_avg.columns:
-                                # Percentile of team value in league distribution
-                                pct = (league_teams_avg[col] < val).mean() * 100
-                                metric_percentiles[short_name] = pct
-                            else:
-                                metric_percentiles[short_name] = 50 # Default
-                                
-                        # Create Chart
-                        fig_phase = radar_chart.create_metric_pizza(team_raw_resolved, metric_percentiles, f"{selected_phase} Profile")
-                        st.pyplot(fig_phase, use_container_width=True)
-                    else:
-                        st.warning("Metrics not found in league data columns")
+                    # 3. Calculate current team absolute scores
+                    current_team_abs = {}
+                    for name, func in in_possession_phases.items():
+                        current_team_abs[name] = func(season_avg) * 10
+                    for name, func in out_possession_phases.items():
+                        current_team_abs[name] = func(season_avg) * 10
+                    
+                    current_team_abs_df = pd.DataFrame([current_team_abs])
+                    
+                    # 4. Use scoring_engine to normalize
+                    norm_results = scoring_engine.normalize_scores_to_league(current_team_abs_df, league_scores_df)
+                    
+                    # 5. Extract results for visualization
+                    in_poss_scores = {name: norm_results[name]['min_max'] for name in in_possession_phases}
+                    in_poss_percentiles = {name: norm_results[name]['percentile'] for name in in_possession_phases}
+                    
+                    out_poss_scores = {name: norm_results[name]['min_max'] for name in out_possession_phases}
+                    out_poss_percentiles = {name: norm_results[name]['percentile'] for name in out_possession_phases}
                 else:
-                    st.warning("League data unavailable for comparison")
-            else:
-                st.info("No metrics defined for this phase")
-
-        # --- TOP PLAYERS ---
-        with c2:
-            st.markdown(f"**Top Contributors**")
-            if not league_player_data.empty and 'Team' in league_player_data.columns:
-                team_players = league_player_data[league_player_data['Team'] == selected_team].copy()
+                    # Fallback to absolute scores if league data missing
+                    in_poss_scores = {name: int(func(season_avg) * 10) for name, func in in_possession_phases.items()}
+                    in_poss_percentiles = in_poss_scores
+                    out_poss_scores = {name: int(func(season_avg) * 10) for name, func in out_possession_phases.items()}
+                    out_poss_percentiles = out_poss_scores
+    
+            # Display Pizza Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**In Possession Strategy**")
+                fig_in = radar_chart.create_phase_pizza(in_poss_scores, in_poss_percentiles, "In Possession")
+                st.pyplot(fig_in, use_container_width=True)
                 
-                # DEDUPLICATE PLAYERS
-                team_players = team_players.drop_duplicates(subset=['Player'])
+            with col2:
+                st.markdown("**Out of Possession Strategy**")
+                fig_out = radar_chart.create_phase_pizza(out_poss_scores, out_poss_percentiles, "Out of Possession")
+                st.pyplot(fig_out, use_container_width=True)
                 
-                if not team_players.empty:
-                    # Calculate composite score for sorting
-                    available_metrics = [m for m in phase_data["player_metrics"] if m in team_players.columns]
+            st.markdown("---")
+            
+            # --- 2. Player Contributions (Percentiles) ---
+            st.markdown("### 2. Top Contributing Players (Percentile Rank)")
+            
+            # Phase Selector
+            selected_phase = st.selectbox(
+                "Select Analysis Phase",
+                list(in_possession_phases.keys()) + list(out_possession_phases.keys())
+            )
+            
+            # Define Phase Definitions (Metrics)
+            PHASE_INFO = {
+                "Build Up": {
+                    "player_metrics": ["Passes per 90", "Accurate passes, %", "Back passes per 90", "Lateral passes per 90"],
+                    "team_metrics": ["Back passes %", "Lateral passes %", "Possession, %", "Passes %"]
+                },
+                "Progression": {
+                    "player_metrics": ["Forward passes per 90", "Progressive passes per 90", "Deep completions per 90", "Progressive runs per 90", "xA per 90"],
+                    "team_metrics": ["Forward passes %", "Progressive passes %", "Passes to final third %"]
+                },
+                "Transition D→A": {
+                    "player_metrics": ["Accelerations per 90", "Progressive runs per 90", "Successful defensive actions per 90"],
+                    "team_metrics": ["Counterattacks Total", "Recoveries High", "PPDA"]
+                },
+                "Offensive Set Pieces": {
+                    "player_metrics": ["Crosses per 90", "Accurate crosses, %", "Aerial duels won, %"],
+                    "team_metrics": ["Crosses %", "Set pieces with shots", "Corners with shots"]
+                },
+                "Output": {
+                    "player_metrics": ["Goals per 90", "xG per 90", "Shots on target, %"],
+                    "team_metrics": ["Goals", "xG", "Shots %", "Shots on target"]
+                },
+                "Pressing": {
+                    "player_metrics": ["Defensive duels per 90", "Defensive duels won, %", "PAdj Interceptions"],
+                    "team_metrics": ["Defensive duels %", "Recoveries High", "PPDA"]
+                },
+                "Defensive Block": {
+                    "player_metrics": ["Shots blocked per 90", "Aerial duels won, %", "Successful defensive actions per 90"],
+                    "team_metrics": ["Defensive duels %", "Aerial duels %", "Sliding tackles %"]
+                },
+                "Transition A→D": {
+                    "player_metrics": ["PAdj Sliding tackles", "Fouls per 90", "Red cards per 100"],
+                    "team_metrics": ["Losses High", "Recoveries Medium", "Fouls"] 
+                },
+                "Set Pieces (Def)": {
+                    "player_metrics": ["Aerial duels won, %", "Aerial duels per 90", "Clearances per 90"],
+                    "team_metrics": ["Aerial duels %", "Clearances", "Shots against Total"]
+                },
+                "Output Against": {
+                    "player_metrics": ["Shots blocked per 90", "Interceptions per 90", "Successful defensive actions per 90"],
+                    "team_metrics": ["Shots against %", "xG against", "Conceded goals"]
+                }
+            }
+            
+            phase_data = PHASE_INFO.get(selected_phase)
+            
+            # --- PHASE METRICS RADAR CHART ---
+            c1, c2 = st.columns([1, 2])
+            
+            with c1:
+                st.markdown(f"**{selected_phase} Metrics**")
+                # Calculate Team Metrics and Percentiles
+                team_metrics = phase_data.get("team_metrics", [])
+                
+                if team_metrics:
+                    # 1. Get Team Raw Values (Season Avg)
+                    team_raw = season_avg.get(team_metrics, pd.Series()).fillna(0).to_dict()
                     
-                    if available_metrics:
-                        team_players['Phase Score'] = 0
-                        for metric in available_metrics:
-                            max_val = team_players[metric].max()
-                            if max_val > 0:
-                                team_players['Phase Score'] += (team_players[metric] / max_val)
+                    # 2. Get Score/Percentile for visualization
+                    league_matches = load_league_data_cached(selected_league)
+                    metric_percentiles = {}
+                    
+                    if not league_matches.empty:
+                        # Resolve column names (handle short vs long mapping)
+                        from column_mapping import COLUMN_MAPPING
                         
-                        # Sort (Show all players)
-                        top_players = team_players.sort_values('Phase Score', ascending=False)
+                        actual_metrics = []
+                        display_names = {} # Map actual col name -> display name (short)
                         
-                        # Display as formatted list
-                        for idx, row in top_players.iterrows():
-                            player_name = row['Player']
-                            position = row['Position'] if 'Position' in row else "Unknown"
+                        for m in team_metrics:
+                            if m in league_matches.columns:
+                                actual_metrics.append(m)
+                                display_names[m] = m
+                            elif m in COLUMN_MAPPING and COLUMN_MAPPING[m] in league_matches.columns:
+                                long_name = COLUMN_MAPPING[m]
+                                actual_metrics.append(long_name)
+                                display_names[long_name] = m
+                        
+                        if actual_metrics:
+                            # Group by team to get team averages
+                            league_teams_avg = league_matches.groupby('Team')[actual_metrics].mean()
                             
-                            # Determine simpler position group for comparison
-                            pos_str = str(position)
-                            if "GK" in pos_str: pos_group = "Goalkeeper"
-                            elif any(x in pos_str for x in ["CB", "LB", "RB", "WB"]): pos_group = "Defender"
-                            elif any(x in pos_str for x in ["CF", "RW", "LW", "FW"]): pos_group = "Forward"
-                            else: pos_group = "Midfielder"
+                            metric_percentiles = {}
+                            team_raw_resolved = {}
                             
-                            st.markdown(f"**{player_name}** ({position})")
-                            
-                            cols = st.columns(len(available_metrics))
-                            for i, metric in enumerate(available_metrics):
-                                val = row[metric]
+                            for col in actual_metrics:
+                                # Get raw value from team data
+                                val = team_raw.get(col, season_avg.get(col, 0))
                                 
-                                # Calculate percentile
-                                pct = radar_chart.calculate_player_percentile(
-                                    val, metric, pos_group, league_player_data
-                                )
+                                short_name = display_names[col]
+                                team_raw_resolved[short_name] = val
                                 
-                                # Color logic
-                                if pct >= 67: color = "green"
-                                elif pct >= 34: color = "orange" # Streamlit yellow is orange
-                                else: color = "red"
-                                
-                                with cols[i]:
-                                    st.caption(f"{metric}")
-                                    st.progress(int(pct) / 100)
-                                    st.markdown(f":{color}[**{int(pct)}**] ({val:.2f})") # Removed 'th Percentile' text
+                                # Percentile rank
+                                if col in league_teams_avg.columns:
+                                    # Percentile of team value in league distribution
+                                    pct = (league_teams_avg[col] < val).mean() * 100
+                                    metric_percentiles[short_name] = pct
+                                else:
+                                    metric_percentiles[short_name] = 50 # Default
                                     
-                            st.markdown("---")
+                            # Create Chart
+                            fig_phase = radar_chart.create_metric_pizza(team_raw_resolved, metric_percentiles, f"{selected_phase} Profile")
+                            st.pyplot(fig_phase, use_container_width=True)
+                        else:
+                            st.warning("Metrics not found in league data columns")
                     else:
-                        st.warning("Relevant metrics not found in player data.")
-            else:
-                st.error("Player data not available.")
-
-    elif page == "Trend Analytics":
-        st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
-        st.subheader("TREND ANALYTICS - Performance Flow Over Time")
-        
-        if all_scores_df.empty:
-            st.warning("No performance data available to show trends.")
-            return
-
-        # 1. Selection of Phase
-        phases_to_chart = [
-            "Game Model", 
-            "In Possession", "Out of Possession",
-            "Build Up", "Progression", "Transition (D to A)", "Set Pieces (Off)", "Output",
-            "Pressing", "Defensive Block", "Transition (A to D)", "Set Pieces (Def)", "Output Against"
-        ]
-        
-        # Filter only existing columns in scores
-        available_phases = [p for p in phases_to_chart if p in all_scores_df.columns]
-        
-        selected_trend_phase = st.selectbox("Select Phase to Analyze", available_phases)
-        
-        # 2. Prepare Data for Charting
-        trend_df = all_scores_df[[selected_trend_phase]].copy()
-        trend_df['Match Number'] = [f"Match {i+1}" for i in range(len(trend_df))]
-        
-        # Get dates for tooltip
-        dates = []
-        for i in range(len(trend_df)):
-            if i < len(team_data):
-                d = team_data.iloc[i]['Date']
-                dates.append(d.strftime('%Y-%m-%d') if pd.notna(d) else f'M{i+1}')
-            else:
-                dates.append(f'M{i+1}')
-        trend_df['Date'] = dates
-        
-        benchmark_val = kpi_thresholds.get(selected_trend_phase, 70)
-        
-        # 3. Create Plotly Line Chart
-        fig = go.Figure()
-
-        # Benchmark line
-        fig.add_shape(
-            type="line",
-            x0=-0.5,
-            y0=benchmark_val,
-            x1=len(trend_df)-0.5,
-            y1=benchmark_val,
-            line=dict(color="rgba(148, 163, 184, 0.5)", width=2, dash="dash"),
-            name="Benchmark"
-        )
-        
-        fig.add_annotation(
-            x=len(trend_df)-1 if len(trend_df) > 0 else 0,
-            y=benchmark_val,
-            text=f"Benchmark: {benchmark_val:.1f}",
-            showarrow=False,
-            yshift=15,
-            font=dict(color="#94a3b8", size=12),
-            bgcolor="rgba(15, 23, 42, 0.8)"
-        )
-
-        # Performance line
-        fig.add_trace(go.Scatter(
-            x=trend_df['Match Number'],
-            y=trend_df[selected_trend_phase],
-            mode='lines+markers+text',
-            name=selected_trend_phase,
-            text=[f"{v:.1f}" for v in trend_df[selected_trend_phase]],
-            textposition="top center",
-            line=dict(color="#3b82f6", width=4, shape='spline'),
-            marker=dict(
-                size=12,
-                color=["#10b981" if v >= benchmark_val else "#ef4444" for v in trend_df[selected_trend_phase]],
-                line=dict(color="#1e293b", width=2)
-            ),
-            hovertemplate="<b>%{x}</b><br>Score: %{y:.1f}<br>Date: %{customdata}<extra></extra>",
-            customdata=trend_df['Date']
-        ))
-
-        # Update Layout
-        fig.update_layout(
-            title=dict(
-                text=f"{selected_trend_phase} Performance Trend",
-                x=0.5,
-                font=dict(size=22, color="#f8fafc", family="Outfit, sans-serif")
-            ),
-            plot_bgcolor="rgba(15, 23, 42, 0.5)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(
-                title="Matches",
-                gridcolor="rgba(255,255,255,0.05)",
-                tickfont=dict(color="#94a3b8"),
-                showgrid=True
-            ),
-            yaxis=dict(
-                title="Performance Score",
-                range=[0, min(110, max(trend_df[selected_trend_phase].max() + 20, 100))],
-                gridcolor="rgba(255,255,255,0.05)",
-                tickfont=dict(color="#94a3b8"),
-                showgrid=True
-            ),
-            margin=dict(l=40, r=40, t=80, b=40),
-            height=500,
-            showlegend=False,
-            hoverlabel=dict(bgcolor="#1e293b", font_size=14, font_family="Inter")
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Insightful cards below
-        st.markdown("### Key Observations")
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        
-        avg_score = trend_df[selected_trend_phase].mean()
-        max_score = trend_df[selected_trend_phase].max()
-        current_score = trend_df[selected_trend_phase].iloc[-1]
-        
-        with col_m1:
-            st.metric("Average Score", f"{avg_score:.1f}", f"{avg_score - benchmark_val:+.1f} vs Target")
-        with col_m2:
-            st.metric("Peak Performance", f"{max_score:.1f}", f"{max_score - avg_score:+.1f} vs Avg")
-        with col_m3:
-            prev_score = trend_df[selected_trend_phase].iloc[-2] if len(trend_df) > 1 else current_score
-            delta = current_score - prev_score
-            st.metric("Latest Form", f"{current_score:.1f}", f"{delta:+.1f} vs Prev")
-        with col_m4:
-            consistency = 100 - trend_df[selected_trend_phase].std()
-            st.metric("Consistency Index", f"{consistency:.1f}", help="Based on standard deviation across matches")
+                        st.warning("League data unavailable for comparison")
+                else:
+                    st.info("No metrics defined for this phase")
+    
+            # --- TOP PLAYERS ---
+            with c2:
+                st.markdown(f"**Top Contributors**")
+                if not league_player_data.empty and 'Team' in league_player_data.columns:
+                    team_players = league_player_data[league_player_data['Team'] == selected_team].copy()
+                    
+                    # DEDUPLICATE PLAYERS
+                    team_players = team_players.drop_duplicates(subset=['Player'])
+                    
+                    if not team_players.empty:
+                        # Calculate composite score for sorting
+                        available_metrics = [m for m in phase_data["player_metrics"] if m in team_players.columns]
+                        
+                        if available_metrics:
+                            team_players['Phase Score'] = 0
+                            for metric in available_metrics:
+                                max_val = team_players[metric].max()
+                                if max_val > 0:
+                                    team_players['Phase Score'] += (team_players[metric] / max_val)
+                            
+                            # Sort (Show all players)
+                            top_players = team_players.sort_values('Phase Score', ascending=False)
+                            
+                            # Display as formatted list
+                            for idx, row in top_players.iterrows():
+                                player_name = row['Player']
+                                position = row['Position'] if 'Position' in row else "Unknown"
+                                
+                                # Determine simpler position group for comparison
+                                pos_str = str(position)
+                                if "GK" in pos_str: pos_group = "Goalkeeper"
+                                elif any(x in pos_str for x in ["CB", "LB", "RB", "WB"]): pos_group = "Defender"
+                                elif any(x in pos_str for x in ["CF", "RW", "LW", "FW"]): pos_group = "Forward"
+                                else: pos_group = "Midfielder"
+                                
+                                st.markdown(f"**{player_name}** ({position})")
+                                
+                                cols = st.columns(len(available_metrics))
+                                for i, metric in enumerate(available_metrics):
+                                    val = row[metric]
+                                    
+                                    # Calculate percentile
+                                    pct = radar_chart.calculate_player_percentile(
+                                        val, metric, pos_group, league_player_data
+                                    )
+                                    
+                                    # Color logic
+                                    if pct >= 67: color = "green"
+                                    elif pct >= 34: color = "orange" # Streamlit yellow is orange
+                                    else: color = "red"
+                                    
+                                    with cols[i]:
+                                        st.caption(f"{metric}")
+                                        st.progress(int(pct) / 100)
+                                        st.markdown(f":{color}[**{int(pct)}**] ({val:.2f})") # Removed 'th Percentile' text
+                                        
+                                st.markdown("---")
+                        else:
+                            st.warning("Relevant metrics not found in player data.")
+                else:
+                    st.error("Player data not available.")
+    
+        elif page == "Trend Analytics":
+            st.markdown('<div class="main-header">Team Intelligence Suite</div>', unsafe_allow_html=True)
+            st.subheader("TREND ANALYTICS - Performance Flow Over Time")
+            
+            if all_scores_df.empty:
+                st.warning("No performance data available to show trends.")
+                return
+    
+            # 1. Selection of Phase
+            phases_to_chart = [
+                "Game Model", 
+                "In Possession", "Out of Possession",
+                "Build Up", "Progression", "Transition (D to A)", "Set Pieces (Off)", "Output",
+                "Pressing", "Defensive Block", "Transition (A to D)", "Set Pieces (Def)", "Output Against"
+            ]
+            
+            # Filter only existing columns in scores
+            available_phases = [p for p in phases_to_chart if p in all_scores_df.columns]
+            
+            selected_trend_phase = st.selectbox("Select Phase to Analyze", available_phases)
+            
+            # 2. Prepare Data for Charting
+            trend_df = all_scores_df[[selected_trend_phase]].copy()
+            trend_df['Match Number'] = [f"Match {i+1}" for i in range(len(trend_df))]
+            
+            # Get dates for tooltip
+            dates = []
+            for i in range(len(trend_df)):
+                if i < len(team_data):
+                    d = team_data.iloc[i]['Date']
+                    dates.append(d.strftime('%Y-%m-%d') if pd.notna(d) else f'M{i+1}')
+                else:
+                    dates.append(f'M{i+1}')
+            trend_df['Date'] = dates
+            
+            benchmark_val = kpi_thresholds.get(selected_trend_phase, 70)
+            
+            # 3. Create Plotly Line Chart
+            fig = go.Figure()
+    
+            # Benchmark line
+            fig.add_shape(
+                type="line",
+                x0=-0.5,
+                y0=benchmark_val,
+                x1=len(trend_df)-0.5,
+                y1=benchmark_val,
+                line=dict(color="rgba(148, 163, 184, 0.5)", width=2, dash="dash"),
+                name="Benchmark"
+            )
+            
+            fig.add_annotation(
+                x=len(trend_df)-1 if len(trend_df) > 0 else 0,
+                y=benchmark_val,
+                text=f"Benchmark: {benchmark_val:.1f}",
+                showarrow=False,
+                yshift=15,
+                font=dict(color="#94a3b8", size=12),
+                bgcolor="rgba(15, 23, 42, 0.8)"
+            )
+    
+            # Performance line
+            fig.add_trace(go.Scatter(
+                x=trend_df['Match Number'],
+                y=trend_df[selected_trend_phase],
+                mode='lines+markers+text',
+                name=selected_trend_phase,
+                text=[f"{v:.1f}" for v in trend_df[selected_trend_phase]],
+                textposition="top center",
+                line=dict(color="#3b82f6", width=4, shape='spline'),
+                marker=dict(
+                    size=12,
+                    color=["#10b981" if v >= benchmark_val else "#ef4444" for v in trend_df[selected_trend_phase]],
+                    line=dict(color="#1e293b", width=2)
+                ),
+                hovertemplate="<b>%{x}</b><br>Score: %{y:.1f}<br>Date: %{customdata}<extra></extra>",
+                customdata=trend_df['Date']
+            ))
+    
+            # Update Layout
+            fig.update_layout(
+                title=dict(
+                    text=f"{selected_trend_phase} Performance Trend",
+                    x=0.5,
+                    font=dict(size=22, color="#f8fafc", family="Outfit, sans-serif")
+                ),
+                plot_bgcolor="rgba(15, 23, 42, 0.5)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(
+                    title="Matches",
+                    gridcolor="rgba(255,255,255,0.05)",
+                    tickfont=dict(color="#94a3b8"),
+                    showgrid=True
+                ),
+                yaxis=dict(
+                    title="Performance Score",
+                    range=[0, min(110, max(trend_df[selected_trend_phase].max() + 20, 100))],
+                    gridcolor="rgba(255,255,255,0.05)",
+                    tickfont=dict(color="#94a3b8"),
+                    showgrid=True
+                ),
+                margin=dict(l=40, r=40, t=80, b=40),
+                height=500,
+                showlegend=False,
+                hoverlabel=dict(bgcolor="#1e293b", font_size=14, font_family="Inter")
+            )
+    
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Insightful cards below
+            st.markdown("### Key Observations")
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            
+            avg_score = trend_df[selected_trend_phase].mean()
+            max_score = trend_df[selected_trend_phase].max()
+            current_score = trend_df[selected_trend_phase].iloc[-1]
+            
+            with col_m1:
+                st.metric("Average Score", f"{avg_score:.1f}", f"{avg_score - benchmark_val:+.1f} vs Target")
+            with col_m2:
+                st.metric("Peak Performance", f"{max_score:.1f}", f"{max_score - avg_score:+.1f} vs Avg")
+            with col_m3:
+                prev_score = trend_df[selected_trend_phase].iloc[-2] if len(trend_df) > 1 else current_score
+                delta = current_score - prev_score
+                st.metric("Latest Form", f"{current_score:.1f}", f"{delta:+.1f} vs Prev")
+            with col_m4:
+                consistency = 100 - trend_df[selected_trend_phase].std()
+                st.metric("Consistency Index", f"{consistency:.1f}", help="Based on standard deviation across matches")
+    except Exception as e:
+        import traceback
+        st.error(f"Application Error: {str(e)}")
+        with st.expander("Technical Details"):
+            st.code(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
